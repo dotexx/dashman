@@ -618,7 +618,7 @@ update_dashd(){
 
         # poll it ----------------------------------------------------------------
 
-        MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternode\s*=\s*1' $INSTALL_DIR/dash.conf | wc -l 2>/dev/null)
+        MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternodeblsprivkey\s*=\s*' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
         if [ $MN_CONF_ENABLED -gt 0 ] ; then
 
             # populate it --------------------------------------------------------
@@ -1066,7 +1066,7 @@ get_dashd_status(){
     MN_PROTX_QUEUE_POSITION=0
     MN_PROTX_SERVICE_VALID=0
 
-    MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternode\s*=\s*1' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
+    MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternodeblsprivkey\s*=\s*' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
     #MN_STARTED=`$DASH_CLI masternode status 2>&1 | grep 'successfully started' | wc -l`
     MN_REGISTERED=0
     [[ -z "$MN_PROTX_RECORD" ]] || MN_REGISTERED=1
