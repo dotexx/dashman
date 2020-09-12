@@ -209,7 +209,7 @@ _check_dependencies() {
     (which perl 2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}perl "
     (which git  2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}git "
 
-    MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternode\s*=\s*1' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
+    MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternodeblsprivkey\s*=\s*' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
     if [ $MN_CONF_ENABLED -gt 0 ] ; then
         (which unzip 2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}unzip "
         (which virtualenv 2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}python-virtualenv "
@@ -318,7 +318,7 @@ _find_dash_directory() {
 
 
 _check_dashman_updates() {
-    GITHUB_DASHMAN_VERSION=$( $curl_cmd https://raw.githubusercontent.com/moocowmoo/dashman/master/VERSION )
+    GITHUB_DASHMAN_VERSION=$( $curl_cmd https://raw.githubusercontent.com/dotexx/dashman/master/VERSION )
     if [ ! -z "$GITHUB_DASHMAN_VERSION" ] && [ "$DASHMAN_VERSION" != "$GITHUB_DASHMAN_VERSION" ]; then
         echo -e "\n"
         echo -e "${C_RED}${0##*/} ${messages["requires_updating"]} $C_GREEN$GITHUB_DASHMAN_VERSION$C_RED\n${messages["requires_sync"]}$C_NORM\n"
@@ -714,6 +714,10 @@ install_dashd(){
 #        if [ ! -z "$USE_IPV6" ]; then
 #            IPADDR='['$PUBLIC_IPV6']'
 #        fi
+
+		IPADDRDIRECT='';
+		if [ `ip addr | grep $IPADDR | wc -l` ] ; then IPADDR_IS_DIRECT=$IPADDR; fi
+
         RPCUSER=`echo $(dd if=/dev/urandom bs=32 count=1 2>/dev/null) | sha256sum | awk '{print $1}'`
         RPCPASS=`echo $(dd if=/dev/urandom bs=32 count=1 2>/dev/null) | sha256sum | awk '{print $1}'`
         while read; do
@@ -934,16 +938,17 @@ _get_dashd_proc_status(){
     if [ -e $INSTALL_DIR/dashd.pid ] ; then
         DASHD_HASPID=`ps --no-header \`cat $INSTALL_DIR/dashd.pid 2>/dev/null\` | wc -l`;
     else
-        DASHD_HASPID=$(pidof dashd)
+        DASHD_HASPID=$(pidof $INSTALL_DIR/dashd)
         if [ $? -gt 0 ]; then
             DASHD_HASPID=0
         fi
     fi
-    DASHD_PID=$(pidof dashd)
+    DASHD_PID=$(pidof $INSTALL_DIR/dashd)
 }
 
 get_dashd_status(){
-
+	MASTERNODE_CONFIG_BIND_IP=$( egrep -s '^[^#]*[\t\s]*bind\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc)' | sed "s/[\t ]//g" | sed "s/^.*=//")
+	
     _get_dashd_proc_status
 
     DASHD_UPTIME=$(ps -p $DASHD_PID -o etime= 2>/dev/null | sed -e 's/ //g')
@@ -956,9 +961,15 @@ get_dashd_status(){
     if [ -z "$DASHD_UPTIME_HOURS" ]; then DASHD_UPTIME_HOURS=0 ; fi
     if [ -z "$DASHD_UPTIME_MINS" ]; then DASHD_UPTIME_MINS=0 ; fi
     if [ -z "$DASHD_UPTIME_SECS" ]; then DASHD_UPTIME_SECS=0 ; fi
-
-    DASHD_LISTENING=`netstat -nat | grep LIST | grep 9999 | wc -l`;
-    DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep 9999 | wc -l`;
+	
+	if [ -z "$MASTERNODE_CONFIG_BIND_IP" ] ; then
+		DASHD_LISTENING=`netstat -nat | grep LIST | grep 9999 | wc -l`;
+		DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep 9999 | wc -l`;
+	else
+		DASHD_LISTENING=`netstat -nat | grep LIST | grep $MASTERNODE_CONFIG_BIND_IP | grep 9999 | wc -l`;
+		DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep $MASTERNODE_CONFIG_BIND_IP | grep 9999 | wc -l`;
+	fi
+	
     DASHD_CURRENT_BLOCK=`$DASH_CLI getblockcount 2>/dev/null`
     if [ -z "$DASHD_CURRENT_BLOCK" ] ; then DASHD_CURRENT_BLOCK=0 ; fi
     DASHD_GETINFO=`$DASH_CLI getinfo 2>/dev/null`;
@@ -969,7 +980,9 @@ get_dashd_status(){
         WEB_BLOCK_COUNT_CHAINZ=0
     fi
 
-    WEB_BLOCK_COUNT_DQA=`$curl_cmd https://explorer.dash.org/chain/Dash/q/getblockcount`;
+    WEB_BLOCK_COUNT_DATA=`$curl_cmd https://explorer.dash.org/insight-api/status`;
+	WEB_BLOCK_COUNT_TEXT=$(echo $WEB_BLOCK_COUNT_DATA | python -m json.tool)
+	WEB_BLOCK_COUNT_DQA=$(echo "$WEB_BLOCK_COUNT_TEXT" | python -m json.tool | grep blocks | awk '{print $2}' | sed -e 's/[",]//g')
     if [ -z "$WEB_BLOCK_COUNT_DQA" ]; then
         WEB_BLOCK_COUNT_DQA=0
     fi
@@ -1008,17 +1021,13 @@ get_dashd_status(){
     fi
 
     get_public_ips
-
-    MASTERNODE_BIND_IP=$PUBLIC_IPV4
-    PUBLIC_PORT_CLOSED=$( timeout 2 nc -4 -z $PUBLIC_IPV4 9999 2>&1 >/dev/null; echo $? )
-#    if [ $PUBLIC_PORT_CLOSED -ne 0 ] && [ ! -z "$PUBLIC_IPV6" ]; then
-#        PUBLIC_PORT_CLOSED=$( timeout 2 nc -6 -z $PUBLIC_IPV6 9999 2>&1 >/dev/null; echo $? )
-#        if [ $PUBLIC_PORT_CLOSED -eq 0 ]; then
-#            MASTERNODE_BIND_IP=$PUBLIC_IPV6
-#        fi
-#    else
-#        MASTERNODE_BIND_IP=$PUBLIC_IPV4
-#    fi
+	
+    MASTERNODE_BIND_IP=$MASTERNODE_CONFIG_BIND_IP
+	if [ -z "$MASTERNODE_BIND_IP" ]; then
+		MASTERNODE_BIND_IP=$PUBLIC_IPV4
+    fi
+	
+    PUBLIC_PORT_CLOSED=$( timeout 2 nc -4 -z $MASTERNODE_BIND_IP 9999 2>&1 >/dev/null; echo $? )
 
     # masternode (remote!) specific
 
@@ -1209,7 +1218,8 @@ print_status() {
 
     pending "${messages["status_hostnam"]}" ; ok "$HOSTNAME"
     pending "${messages["status_uptimeh"]}" ; ok "$HOST_UPTIME_DAYS ${messages["days"]}, $HOST_LOAD_AVERAGE"
-    pending "${messages["status_dashdip"]}" ; [ $MASTERNODE_BIND_IP != 'none' ] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
+    pending "${messages["status_dashdip"]}" ; [ $PUBLIC_IPV4 != 'none' ] && ok "$PUBLIC_IPV4" || err "$PUBLIC_IPV4"
+	pending "${messages["status_dashipc"]}" ; [ $MASTERNODE_BIND_IP == $PUBLIC_IPV4 ] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
     pending "${messages["status_dashdve"]}" ; ok "$CURRENT_VERSION"
     pending "${messages["status_uptodat"]}" ; [ $DASHD_UP_TO_DATE -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_running"]}" ; [ $DASHD_HASPID     -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"

@@ -99,6 +99,7 @@ messages=(
     ["status_hostnam"]="  nazwa hosta                        : "
     ["status_uptimeh"]="  czas pracy hosta/średnie zużycie   : "
     ["status_dashdip"]="  przypisany adres IP                : "
+	["status_dashipc"]="  dashd config adres IP              : "
     ["status_dashdve"]="  wersja dashd                       : "
     ["status_uptodat"]="  dashd zauktualizowany              : "
     ["status_running"]="  dashd uruchomiony                  : "

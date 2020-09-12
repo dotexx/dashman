@@ -99,6 +99,7 @@ messages=(
     ["status_hostnam"]="  hostname                   : "
     ["status_uptimeh"]="  host uptime/load average   : "
     ["status_dashdip"]="  dashd bind ip address      : "
+	["status_dashipc"]="  dashd config ip address    : "
     ["status_dashdve"]="  dashd version              : "
     ["status_uptodat"]="  dashd up-to-date           : "
     ["status_running"]="  dashd running              : "
