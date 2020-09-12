@@ -38,6 +38,9 @@ To get the current status of dashd, do:
 
     dashman/dashman status
 
+To install or reinstall sentinel, do:
+
+    dashman/dashman install sentinel
 
 # Commands
 
