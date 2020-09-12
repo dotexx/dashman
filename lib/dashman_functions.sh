@@ -465,8 +465,7 @@ restart_dashd(){
 
 update_dashd(){
 
-    if [ $LATEST_VERSION != $CURRENT_VERSION ] || [ ! -z "$REINSTALL" ] ; then
-                    
+    if [ $LATEST_VERSION != $CURRENT_VERSION ] || [ ! -z "$REINSTALL" ] ; then 
 
         if [ ! -z "$REINSTALL" ];then
             echo -e ""
@@ -1219,29 +1218,29 @@ print_status() {
     pending "${messages["status_hostnam"]}" ; ok "$HOSTNAME"
     pending "${messages["status_uptimeh"]}" ; ok "$HOST_UPTIME_DAYS ${messages["days"]}, $HOST_LOAD_AVERAGE"
     pending "${messages["status_dashdip"]}" ; [ $PUBLIC_IPV4 != 'none' ] && ok "$PUBLIC_IPV4" || err "$PUBLIC_IPV4"
-	pending "${messages["status_dashipc"]}" ; [ $MASTERNODE_BIND_IP == $PUBLIC_IPV4 ] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
+    pending "${messages["status_dashipc"]}" ; [ $MASTERNODE_BIND_IP == $PUBLIC_IPV4 ] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
     pending "${messages["status_dashdve"]}" ; ok "$CURRENT_VERSION"
-    pending "${messages["status_uptodat"]}" ; [ $DASHD_UP_TO_DATE -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_running"]}" ; [ $DASHD_HASPID     -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_uptimed"]}" ; [ $DASHD_RUNNING    -gt 0 ] && ok "$DASHD_UPTIME_STRING" || err "$DASHD_UPTIME_STRING"
-    pending "${messages["status_drespon"]}" ; [ $DASHD_RUNNING    -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_dlisten"]}" ; [ $DASHD_LISTENING  -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_dconnec"]}" ; [ $DASHD_CONNECTED  -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_dportop"]}" ; [ $PUBLIC_PORT_CLOSED  -lt 1 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_dconcnt"]}" ; [ $DASHD_CONNECTIONS   -gt 0 ] && ok "$DASHD_CONNECTIONS" || err "$DASHD_CONNECTIONS"
-    pending "${messages["status_dblsync"]}" ; [ $DASHD_SYNCED     -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_dbllast"]}" ; [ $DASHD_SYNCED     -gt 0 ] && ok "$DASHD_CURRENT_BLOCK" || err "$DASHD_CURRENT_BLOCK"
-    pending "${messages["status_webchai"]}" ; [ $WEB_BLOCK_COUNT_CHAINZ -gt 0 ] && ok "$WEB_BLOCK_COUNT_CHAINZ" || err "$WEB_BLOCK_COUNT_CHAINZ"
-    pending "${messages["status_webdark"]}" ; [ $WEB_BLOCK_COUNT_DQA    -gt 0 ] && ok "$WEB_BLOCK_COUNT_DQA" || err "$WEB_BLOCK_COUNT_DQA"
-    pending "${messages["status_webdash"]}" ; [ $WEB_BLOCK_COUNT_DWHALE -gt 0 ] && ok "$WEB_BLOCK_COUNT_DWHALE" || err "$WEB_BLOCK_COUNT_DWHALE"
-    pending "${messages["status_webmast"]}" ; [ $WEB_ME_FORK_DETECT -gt 0 ] && err "$WEB_ME" || ok "$WEB_ME"
+    pending "${messages["status_uptodat"]}" ; [[ $DASHD_UP_TO_DATE -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_running"]}" ; [[ $DASHD_HASPID     -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_uptimed"]}" ; [[ $DASHD_RUNNING    -gt 0 ]] && ok "$DASHD_UPTIME_STRING" || err "$DASHD_UPTIME_STRING"
+    pending "${messages["status_drespon"]}" ; [[ $DASHD_RUNNING    -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_dlisten"]}" ; [[ $DASHD_LISTENING  -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_dconnec"]}" ; [[ $DASHD_CONNECTED  -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_dportop"]}" ; [[ $PUBLIC_PORT_CLOSED  -lt 1 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_dconcnt"]}" ; [[ $DASHD_CONNECTIONS   -gt 0 ]] && ok "$DASHD_CONNECTIONS" || err "$DASHD_CONNECTIONS"
+    pending "${messages["status_dblsync"]}" ; [[ $DASHD_SYNCED     -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_dbllast"]}" ; [[ $DASHD_SYNCED     -gt 0 ]] && ok "$DASHD_CURRENT_BLOCK" || err "$DASHD_CURRENT_BLOCK"
+    pending "${messages["status_webchai"]}" ; [[ $WEB_BLOCK_COUNT_CHAINZ -gt 0 ]] && ok "$WEB_BLOCK_COUNT_CHAINZ" || err "$WEB_BLOCK_COUNT_CHAINZ"
+    pending "${messages["status_webdark"]}" ; [[ $WEB_BLOCK_COUNT_DQA    -gt 0 ]] && ok "$WEB_BLOCK_COUNT_DQA" || err "$WEB_BLOCK_COUNT_DQA"
+    pending "${messages["status_webdash"]}" ; [[ $WEB_BLOCK_COUNT_DWHALE -gt 0 ]] && ok "$WEB_BLOCK_COUNT_DWHALE" || err "$WEB_BLOCK_COUNT_DWHALE"
+    pending "${messages["status_webmast"]}" ; [[ $WEB_ME_FORK_DETECT -gt 0 ]] && err "$WEB_ME" || ok "$WEB_ME"
     pending "${messages["status_dcurdif"]}" ; ok "$DASHD_DIFFICULTY"
     if [ $DASHD_RUNNING -gt 0 ] && [ $MN_CONF_ENABLED -gt 0 ] ; then
-    #pending "${messages["status_mnstart"]}" ; [ $MN_STARTED -gt 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_mnregis"]}" ; [ $MN_REGISTERED -gt 0 ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_mnvislo"]}" ; [ $MN_VISIBLE -gt 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    #pending "${messages["status_mnstart"]}" ; [[ $MN_STARTED -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_mnregis"]}" ; [[ $MN_REGISTERED -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_mnvislo"]}" ; [[ $MN_VISIBLE -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
         if [ $WEB_NINJA_API_OFFLINE -eq 0 ]; then
-    pending "${messages["status_mnvisni"]}" ; [ $WEB_NINJA_SEES_OPEN -gt 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_mnvisni"]}" ; [[ $WEB_NINJA_SEES_OPEN -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_mnaddre"]}" ; ok "$WEB_NINJA_MN_ADDY"
     pending "${messages["status_mnfundt"]}" ; ok "$WEB_NINJA_MN_VIN-$WEB_NINJA_MN_VIDX"
     pending "${messages["status_mnqueue"]}" ; ok "$MN_PROTX_QUEUE_POSITION/$MN_PROTX_QUEUE_LENGTH"
@@ -1252,17 +1251,17 @@ print_status() {
         ok "$WEB_NINJA_MN_LAST_PAID_AMOUNT in $WEB_NINJA_MN_LAST_PAID_BLOCK on $WEB_NINJA_LAST_PAYMENT_TIME " || warn 'never'
     pending "${messages["status_mnbalan"]}" ; [ ! -z "$WEB_NINJA_MN_BALANCE" ] && ok "$WEB_NINJA_MN_BALANCE" || warn '0'
 
-    pending "    sentinel installed       : " ; [ $SENTINEL_INSTALLED -gt 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "    sentinel tests passed    : " ; [ $SENTINEL_PYTEST    -eq 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "    sentinel crontab enabled : " ; [ $SENTINEL_CRONTAB   -gt 0  ] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "    sentinel online          : " ; [ $SENTINEL_LAUNCH_OK -eq 0  ] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
+    pending "    sentinel installed       : " ; [[ $SENTINEL_INSTALLED -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "    sentinel tests passed    : " ; [[ $SENTINEL_PYTEST    -eq 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "    sentinel crontab enabled : " ; [[ $SENTINEL_CRONTAB   -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "    sentinel online          : " ; [[ $SENTINEL_LAUNCH_OK -eq 0  ]] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
 
         else
     err     "  dashninja api offline        " ;
         fi
     if [ $MN_REGISTERED -gt 0 ] ; then
         pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
-        pending " protx registered service    : " ; [ $MN_PROTX_SERVICE_VALID  -eq 1 ] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
+        pending " protx registered service    : " ; [[ $MN_PROTX_SERVICE_VALID  -eq 1 ]] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
         pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY"
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
         pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT"
@@ -1273,13 +1272,13 @@ print_status() {
         pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
-        pending " protx pose score            : " ; [ $MN_PROTX_POSE_PENALTY  -gt 0 ] && err "$MN_PROTX_POSE_PENALTY" || ok "$MN_PROTX_POSE_PENALTY"
+        pending " protx pose score            : " ; [[ $MN_PROTX_POSE_PENALTY  -gt 0 ]] && err "$MN_PROTX_POSE_PENALTY" || ok "$MN_PROTX_POSE_PENALTY"
         #    MN_PROTX_POSE_REVIVED_HEIGHT=$(echo "$MN_PROTX_RECORD" | grep PoSeRevivedHeight | awk '{print $2}')
         #    MN_PROTX_POSE_BAN_HEIGHT=$(echo "$MN_PROTX_RECORD" | grep PoSeBanHeight | awk '{print $2}')
     fi
 
     else
-    pending "${messages["status_mncount"]}" ; [ $MN_TOTAL            -gt 0 ] && ok "$MN_TOTAL" || err "$MN_TOTAL"
+		pending "${messages["status_mncount"]}" ; [[ $MN_TOTAL -gt 0 ]] && ok "$MN_TOTAL" || err "$MN_TOTAL"
     fi
 }
 
