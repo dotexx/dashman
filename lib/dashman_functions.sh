@@ -89,6 +89,21 @@ get_wallet_balance() {
 	echo $( $curl_cmd https://explorer.dash.org/insight-api/addr/$1/?noTxList=1 | python -mjson.tool | grep 'balance"' | awk '{print $2}' | sed -e 's/[",]//g' )
 }
 
+get_last_payment_date() {
+	if [ $1 -gt 0 ];then
+		NOW=`date +%s`
+	
+		DASHD_PAY_BLOCK_HASH=`$DASH_CLI getblockhash $1`
+		DASHD_PAY_BLOCK_TIME=`$DASH_CLI getblockheader $DASHD_PAY_BLOCK_HASH | python -mjson.tool | grep '"time' | awk '{print $2}'| sed -e 's/[",]//g'`
+		DASHD_PAY_BLOCK_DIFF=$(( NOW-DASHD_PAY_BLOCK_TIME ))
+		
+		DASHD_PAY_DAYS=$(( DASHD_PAY_BLOCK_DIFF/86400 ))
+		DASHD_PAY_HOURS=$(( (DASHD_PAY_BLOCK_DIFF-(DASHD_PAY_DAYS*86400))/3600 ))
+		
+		echo "$DASHD_PAY_DAYS days $DASHD_PAY_HOURS hours"
+    fi
+}
+
 pending(){ [[ $QUIET ]] || ( echo -en "$C_YELLOW$1$C_NORM$TPUT_EL" ); }
 
 ok(){ [[ $QUIET ]] || echo -e "$C_GREEN$1$C_NORM" ; }
@@ -1217,19 +1232,21 @@ print_status() {
     pending "    sentinel crontab enabled : " ; [[ $SENTINEL_CRONTAB   -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "    sentinel online          : " ; [[ $SENTINEL_LAUNCH_OK -eq 0  ]] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
 
-    if [ $MN_REGISTERED -gt 0 ] ; then		 
+    if [ $MN_REGISTERED -gt 0 ] ; then
+		MN_PAY=$(get_last_payment_date $MN_PROTX_LAST_PAID_HEIGHT)
+		BAL_COL=$(get_wallet_balance $MN_PROTX_COLL_ADDY)
+		BAL_PAY=$(get_wallet_balance $MN_PROTX_PAYOUT_ADDRESS)
+		
         pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
         pending " protx registered service    : " ; [[ $MN_PROTX_SERVICE_VALID  -eq 1 ]] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
-        pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY"
-        pending "           wallet balance    : " ; warn $(get_wallet_balance $MN_PROTX_COLL_ADDY)
-        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS"
-        pending "           wallet balance    : " ; warn $(get_wallet_balance $MN_PROTX_PAYOUT_ADDRESS)
+        pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY | $BAL_COL dash"
+        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS | $BAL_PAY dash"
         pending " protx owner address         : " ; ok "$MN_PROTX_OWNER_ADDRESS"
         pending " protx voter address         : " ; ok "$MN_PROTX_VOTER_ADDRESS"
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
         pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT"
         pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
-        pending " protx last paid block       : " ; ok "$MN_PROTX_LAST_PAID_HEIGHT"
+        pending " protx last paid block       : " ; [[ $MN_PROTX_LAST_PAID_HEIGHT -gt 0  ]] && ok "$MN_PROTX_LAST_PAID_HEIGHT | $MN_PAY" || warn "never"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
 		pending " protx PoSe ban height       : " ; [[ $MN_PROTX_POSE_BAN_HEIGHT  -gt -1 ]] && err "$MN_PROTX_POSE_BAN_HEIGHT" || ok "$MN_PROTX_POSE_BAN_HEIGHT"
