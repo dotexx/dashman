@@ -1233,20 +1233,16 @@ print_status() {
     pending "    sentinel online          : " ; [[ $SENTINEL_LAUNCH_OK -eq 0  ]] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
 
     if [ $MN_REGISTERED -gt 0 ] ; then
-		MN_PAY=$(get_last_payment_date $MN_PROTX_LAST_PAID_HEIGHT)
-		BAL_COL=$(get_wallet_balance $MN_PROTX_COLL_ADDY)
-		BAL_PAY=$(get_wallet_balance $MN_PROTX_PAYOUT_ADDRESS)
-		
-        pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
+		pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
         pending " protx registered service    : " ; [[ $MN_PROTX_SERVICE_VALID  -eq 1 ]] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
-        pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY | $BAL_COL dash"
-        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS | $BAL_PAY dash"
+        pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY | $(get_wallet_balance $MN_PROTX_COLL_ADDY) dash"
+        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS | $(get_wallet_balance $MN_PROTX_PAYOUT_ADDRESS) dash"
         pending " protx owner address         : " ; ok "$MN_PROTX_OWNER_ADDRESS"
         pending " protx voter address         : " ; ok "$MN_PROTX_VOTER_ADDRESS"
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
-        pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT"
-        pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
-        pending " protx last paid block       : " ; [[ $MN_PROTX_LAST_PAID_HEIGHT -gt 0  ]] && ok "$MN_PROTX_LAST_PAID_HEIGHT | $MN_PAY" || warn "never"
+        pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT | $( get_last_payment_date $MN_PROTX_REGD_HEIGHT )"
+        pending " protx last paid block       : " ; [[ $MN_PROTX_LAST_PAID_HEIGHT -gt 0  ]] && ok "$MN_PROTX_LAST_PAID_HEIGHT | $( get_last_payment_date $MN_PROTX_LAST_PAID_HEIGHT )" || warn "never"
+		pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
 		pending " protx PoSe ban height       : " ; [[ $MN_PROTX_POSE_BAN_HEIGHT  -gt -1 ]] && err "$MN_PROTX_POSE_BAN_HEIGHT" || ok "$MN_PROTX_POSE_BAN_HEIGHT"
