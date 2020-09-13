@@ -100,7 +100,7 @@ get_last_payment_date() {
 		DASHD_PAY_DAYS=$(( DASHD_PAY_BLOCK_DIFF/86400 ))
 		DASHD_PAY_HOURS=$(( (DASHD_PAY_BLOCK_DIFF-(DASHD_PAY_DAYS*86400))/3600 ))
 		
-		echo "$DASHD_PAY_DAYS days $DASHD_PAY_HOURS hours"
+		echo "$DASHD_PAY_DAYS ${messages["days"]}, $DASHD_PAY_HOURS ${messages["hours"]}"
     fi
 }
 
