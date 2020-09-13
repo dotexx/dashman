@@ -97,10 +97,19 @@ get_last_payment_date() {
 		DASHD_PAY_BLOCK_TIME=`$DASH_CLI getblockheader $DASHD_PAY_BLOCK_HASH | python -mjson.tool | grep '"time' | awk '{print $2}'| sed -e 's/[",]//g'`
 		DASHD_PAY_BLOCK_DIFF=$(( NOW-DASHD_PAY_BLOCK_TIME ))
 		
-		DASHD_PAY_DAYS=$(( DASHD_PAY_BLOCK_DIFF/86400 ))
-		DASHD_PAY_HOURS=$(( (DASHD_PAY_BLOCK_DIFF-(DASHD_PAY_DAYS*86400))/3600 ))
+		echo $(print_count_down $DASHD_PAY_BLOCK_DIFF)
+    fi
+}
+
+print_count_down() {
+	if [ $1 -gt 0 ];then
+		INIT=$1
+	
+		days=$(( INIT/86400 ))
+		hours=$(( (INIT-(days*86400))/3600 ))
+		min=$(( (INIT-(days*86400+hours*3600))/60 ))
 		
-		echo "$DASHD_PAY_DAYS ${messages["days"]}, $DASHD_PAY_HOURS ${messages["hours"]}"
+		echo "$days ${messages["days"]}, $hours ${messages["hours"]}, $min ${messages["mins"]}"
     fi
 }
 
@@ -1242,6 +1251,7 @@ print_status() {
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
         pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT | $( get_last_payment_date $MN_PROTX_REGD_HEIGHT )"
         pending " protx last paid block       : " ; [[ $MN_PROTX_LAST_PAID_HEIGHT -gt 0  ]] && ok "$MN_PROTX_LAST_PAID_HEIGHT | $( get_last_payment_date $MN_PROTX_LAST_PAID_HEIGHT )" || warn "never"
+        pending " next payment                : " ; [[ $MN_PROTX_QUEUE_POSITION -gt 0  ]] && ok "$( print_count_down $(( MN_PROTX_QUEUE_POSITION*150 )) )" || warn "never"
 		pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
