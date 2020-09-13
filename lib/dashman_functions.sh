@@ -85,6 +85,10 @@ wget_cmd='wget --no-check-certificate -q'
 
 # (mostly) functioning functions -- lots of refactoring to do ----------------
 
+get_wallet_balance() {
+	echo $( $curl_cmd https://explorer.dash.org/insight-api/addr/$1/?noTxList=1 | python -mjson.tool | grep 'balance"' | awk '{print $2}' | sed -e 's/[",]//g' )
+}
+
 pending(){ [[ $QUIET ]] || ( echo -en "$C_YELLOW$1$C_NORM$TPUT_EL" ); }
 
 ok(){ [[ $QUIET ]] || echo -e "$C_GREEN$1$C_NORM" ; }
@@ -1141,42 +1145,6 @@ get_dashd_status(){
         fi
         cd - > /dev/null
     fi
-
-    if [ $MN_CONF_ENABLED -gt 0 ] ; then
-        WEB_NINJA_API=$($curl_cmd "https://www.dashninja.pl/api/masternodes?ips=\[\"${MASTERNODE_BIND_IP}:9999\"\]&portcheck=1&balance=1")
-        if [ -z "$WEB_NINJA_API" ]; then
-            sleep 2
-            # downgrade connection to support distros with stale nss libraries
-            WEB_NINJA_API=$($curl_cmd --ciphers rsa_3des_sha "https://www.dashninja.pl/api/masternodes?ips=\[\"${MASTERNODE_BIND_IP}:9999\"\]&portcheck=1&balance=1")
-        fi
-
-        WEB_NINJA_JSON_TEXT=$(echo $WEB_NINJA_API | python -m json.tool)
-        WEB_NINJA_SEES_OPEN=$(echo "$WEB_NINJA_JSON_TEXT" | grep '"Result"' | grep open | wc -l)
-        WEB_NINJA_MN_ADDY=$(echo "$WEB_NINJA_JSON_TEXT" | grep MasternodePubkey | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_VIN=$(echo "$WEB_NINJA_JSON_TEXT" | grep MasternodeOutputHash | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_VIDX=$(echo "$WEB_NINJA_JSON_TEXT" | grep MasternodeOutputIndex | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_BALANCE=$(echo "$WEB_NINJA_JSON_TEXT" | grep Value | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_LAST_PAID_TIME_EPOCH=$(echo "$WEB_NINJA_JSON_TEXT" | grep MNLastPaidTime | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_LAST_PAID_AMOUNT=$(echo "$WEB_NINJA_JSON_TEXT" | grep MNLastPaidAmount | awk '{print $2}' | sed -e 's/[",]//g')
-        WEB_NINJA_MN_LAST_PAID_BLOCK=$(echo "$WEB_NINJA_JSON_TEXT" | grep MNLastPaidBlock | awk '{print $2}' | sed -e 's/[",]//g')
-
-        WEB_NINJA_LAST_PAYMENT_TIME=$(date -d @${WEB_NINJA_MN_LAST_PAID_TIME_EPOCH} '+%m/%d/%Y %H:%M:%S' 2>/dev/null)
-
-        if [ ! -z "$WEB_NINJA_LAST_PAYMENT_TIME" ]; then
-            local daysago=$(dateDiff -d now "$WEB_NINJA_LAST_PAYMENT_TIME")
-            local hoursago=$(dateDiff -h now "$WEB_NINJA_LAST_PAYMENT_TIME")
-            hoursago=$(( hoursago - (24 * daysago) ))
-            WEB_NINJA_LAST_PAYMENT_TIME="$WEB_NINJA_LAST_PAYMENT_TIME ($daysago ${messages["days"]}, $hoursago ${messages["hours"]}${messages["ago"]})"
-
-        fi
-
-        WEB_NINJA_API_OFFLINE=0
-        if [[ $(echo "$WEB_NINJA_API" | grep '"status":"ERROR"' | wc -l) > 0 ]];then
-            WEB_NINJA_API_OFFLINE=1
-        fi
-
-    fi
-
 }
 
 date2stamp () {
@@ -1239,42 +1207,34 @@ print_status() {
     #pending "${messages["status_mnstart"]}" ; [[ $MN_STARTED -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_mnregis"]}" ; [[ $MN_REGISTERED -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_mnvislo"]}" ; [[ $MN_VISIBLE -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-        if [ $WEB_NINJA_API_OFFLINE -eq 0 ]; then
-    pending "${messages["status_mnvisni"]}" ; [[ $WEB_NINJA_SEES_OPEN -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
-    pending "${messages["status_mnaddre"]}" ; ok "$WEB_NINJA_MN_ADDY"
-    pending "${messages["status_mnfundt"]}" ; ok "$WEB_NINJA_MN_VIN-$WEB_NINJA_MN_VIDX"
+    
     pending "${messages["status_mnqueue"]}" ; ok "$MN_PROTX_QUEUE_POSITION/$MN_PROTX_QUEUE_LENGTH"
     pending "  masternode mnsync state    : " ; [ ! -z "$MN_SYNC_ASSET" ] && ok "$MN_SYNC_ASSET" || ""
     pending "  masternode network state   : " ; [ "$MN_STATUS" == "ENABLED" ] && ok "$MN_STATUS" || highlight "$MN_STATUS"
-
-    pending "${messages["status_mnlastp"]}" ; [ ! -z "$WEB_NINJA_MN_LAST_PAID_AMOUNT" ] && \
-        ok "$WEB_NINJA_MN_LAST_PAID_AMOUNT in $WEB_NINJA_MN_LAST_PAID_BLOCK on $WEB_NINJA_LAST_PAYMENT_TIME " || warn 'never'
-    pending "${messages["status_mnbalan"]}" ; [ ! -z "$WEB_NINJA_MN_BALANCE" ] && ok "$WEB_NINJA_MN_BALANCE" || warn '0'
 
     pending "    sentinel installed       : " ; [[ $SENTINEL_INSTALLED -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "    sentinel tests passed    : " ; [[ $SENTINEL_PYTEST    -eq 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "    sentinel crontab enabled : " ; [[ $SENTINEL_CRONTAB   -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "    sentinel online          : " ; [[ $SENTINEL_LAUNCH_OK -eq 0  ]] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
 
-        else
-    err     "  dashninja api offline        " ;
-        fi
-    if [ $MN_REGISTERED -gt 0 ] ; then
+    if [ $MN_REGISTERED -gt 0 ] ; then		 
         pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
         pending " protx registered service    : " ; [[ $MN_PROTX_SERVICE_VALID  -eq 1 ]] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
         pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY"
+        pending "           wallet balance    : " ; warn $(get_wallet_balance $MN_PROTX_COLL_ADDY)
+        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS"
+        pending "           wallet balance    : " ; warn $(get_wallet_balance $MN_PROTX_PAYOUT_ADDRESS)
+        pending " protx owner address         : " ; ok "$MN_PROTX_OWNER_ADDRESS"
+        pending " protx voter address         : " ; ok "$MN_PROTX_VOTER_ADDRESS"
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
         pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT"
         pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
         pending " protx last paid block       : " ; ok "$MN_PROTX_LAST_PAID_HEIGHT"
-        pending " protx owner address         : " ; ok "$MN_PROTX_OWNER_ADDRESS"
-        pending " protx voter address         : " ; ok "$MN_PROTX_VOTER_ADDRESS"
-        pending " protx payout address        : " ; ok "$MN_PROTX_PAYOUT_ADDRESS"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
-        pending " protx pose score            : " ; [[ $MN_PROTX_POSE_PENALTY  -gt 0 ]] && err "$MN_PROTX_POSE_PENALTY" || ok "$MN_PROTX_POSE_PENALTY"
-        #    MN_PROTX_POSE_REVIVED_HEIGHT=$(echo "$MN_PROTX_RECORD" | grep PoSeRevivedHeight | awk '{print $2}')
-        #    MN_PROTX_POSE_BAN_HEIGHT=$(echo "$MN_PROTX_RECORD" | grep PoSeBanHeight | awk '{print $2}')
+		pending " protx PoSe ban height       : " ; [[ $MN_PROTX_POSE_BAN_HEIGHT  -gt -1 ]] && err "$MN_PROTX_POSE_BAN_HEIGHT" || ok "$MN_PROTX_POSE_BAN_HEIGHT"
+	#	pending " protx PoSe revived height   : " ; [[ $MN_PROTX_POSE_REVIVED_HEIGHT  -gt 0 ]] && warn "$MN_PROTX_POSE_REVIVED_HEIGHT" || ok "$MN_PROTX_POSE_REVIVED_HEIGHT"
+		pending " protx PoSe score            : " ; [[ $MN_PROTX_POSE_PENALTY  -gt 0 ]] && err "$MN_PROTX_POSE_PENALTY" || ok "$MN_PROTX_POSE_PENALTY"	
     fi
 
     else

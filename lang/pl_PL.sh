@@ -120,12 +120,8 @@ messages=(
     ["status_mnstart"]="  masternod uruchomiony              : "
 	["status_mnregis"]="  masternod zarejestrowany           : "
     ["status_mnvislo"]="  masternod wiczoczny (lokalny)      : "
-    ["status_mnvisni"]="  masternod wiczoczny (ninja)        : "
-    ["status_mnaddre"]="  adres twojego masternoda           : "
-    ["status_mnfundt"]="  ID transakcji fundującej noda      : "
     ["status_mnqueue"]="  pozycja w kolejce                  : "
     ["status_mnlastp"]="  ostatnia otrzymana płatność        : "
-    ["status_mnbalan"]="  saldo masternoda                   : "
 
     # do not translate, leave empty, overrides english sentence usage
     ["ago"]=""

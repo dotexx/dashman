@@ -120,12 +120,8 @@ messages=(
     ["status_mnstart"]="  masternode started         : "
     ["status_mnregis"]="  masternode registered      : "
     ["status_mnvislo"]="  masternode visible (local) : "
-    ["status_mnvisni"]="  masternode visible (ninja) : "
-    ["status_mnaddre"]="  masternode address         : "
-    ["status_mnfundt"]="  masternode funding txn     : "
     ["status_mnqueue"]="  masternode queue/count     : "
     ["status_mnlastp"]="  masternode last payment    : "
-    ["status_mnbalan"]="  masternode balance         : "
 
     ["ago"]=" ago"
     ["found"]="found."
