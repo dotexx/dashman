@@ -1007,9 +1007,9 @@ get_dashd_status(){
         WEB_BLOCK_COUNT_CHAINZ=0
     fi
 
-    WEB_BLOCK_COUNT_DATA=`$curl_cmd https://explorer.dash.org/insight-api/status`;
+    WEB_BLOCK_COUNT_DATA=`$curl_cmd https://explorer.dash.org/insight-api/blocks?limit=1`;
 	WEB_BLOCK_COUNT_TEXT=$(echo $WEB_BLOCK_COUNT_DATA | python -m json.tool)
-	WEB_BLOCK_COUNT_DQA=$(echo "$WEB_BLOCK_COUNT_TEXT" | python -m json.tool | grep blocks | awk '{print $2}' | sed -e 's/[",]//g')
+	WEB_BLOCK_COUNT_DQA=$(echo "$WEB_BLOCK_COUNT_TEXT" | python -m json.tool | grep height | awk '{print $2}' | sed -e 's/[",]//g')
     if [ -z "$WEB_BLOCK_COUNT_DQA" ]; then
         WEB_BLOCK_COUNT_DQA=0
     fi
@@ -1251,7 +1251,7 @@ print_status() {
         pending " protx registered collateral : " ; ok "$MN_PROTX_COLL_HASH-$MN_PROTX_COLL_IDX"
         pending " protx registered at block   : " ; ok "$MN_PROTX_REGD_HEIGHT | $( get_last_payment_date $MN_PROTX_REGD_HEIGHT )"
         pending " protx last paid block       : " ; [[ $MN_PROTX_LAST_PAID_HEIGHT -gt 0  ]] && ok "$MN_PROTX_LAST_PAID_HEIGHT | $( get_last_payment_date $MN_PROTX_LAST_PAID_HEIGHT )" || warn "never"
-        pending " next payment                : " ; [[ $MN_PROTX_QUEUE_POSITION -gt 0  ]] && ok "$( print_count_down $(( MN_PROTX_QUEUE_POSITION*150 )) )" || warn "never"
+        pending " next payment approximately  : " ; [[ $MN_PROTX_QUEUE_POSITION -gt 0  ]] && ok "$( print_count_down $(( MN_PROTX_QUEUE_POSITION*150 )) )" || warn "never"
 		pending " protx confirmations         : " ; ok "$MN_PROTX_CONFIRMATIONS"
         pending " protx operator reward       : " ; ok "$MN_PROTX_OPER_REWARD"
         pending " protx operator pubkey       : " ; ok "$MN_PROTX_OPER_PUBKEY"
