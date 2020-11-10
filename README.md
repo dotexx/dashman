@@ -93,6 +93,10 @@ given the optional 'now' argument.
 
 # Screencaps
 
+### status
+
+<img src="https://raw.githubusercontent.com/dotexx/dashman/master/screencaps/dashman_0.1-status.png">
+
 ### install
 
 <img src="https://raw.githubusercontent.com/dotexx/dashman/master/screencaps/dashman_0.1-install.png">
@@ -109,10 +113,13 @@ given the optional 'now' argument.
 
 <img src="https://raw.githubusercontent.com/dotexx/dashman/master/screencaps/dashman_0.1-restart.png">
 
-### status
-
-<img src="https://raw.githubusercontent.com/dotexx/dashman/master/screencaps/dashman_0.1-status.png">
-
 # Contact
 
 Create an issue or submit a pull request.
+
+
+# Tip jar
+
+DASH:	Xj7Y4Cpc3Eh7S8o9mw8JnS2QjVrNWLXHyy
+BTC:	bc1q455mzvwz89x2zewfatz3gcdqw6zddh5ghne3jr
+LTC:	M9ZdWfFa7zQVh7Vi8GMGfBiyfgSJY4s6YP
