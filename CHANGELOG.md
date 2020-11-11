@@ -1,3 +1,27 @@
+0.1.30 - Wed Nov 10 2020
+
+	added countdown to next payment
+	show last payment block time & balance
+	
+	bugfix - explorer.dash.org fix
+	
+	updated status screencap
+
+0.1.29 - Tue Sep 13 2020
+
+	compat - update dashd 16.1
+
+	replaced deprecated "getinfo" with "getnetworkinfo" & "getblockchaininfo" for dash_cli
+	remove broken dashninja
+	wallet banances information
+
+	bugfix - explorer.dash.org block count fix
+	bugfix - "-gt: unary operator expected" (Ubuntu)
+	bugfix - PL translation by @charlesrocket 
+	bugfix - pidof detection change
+	
+	config - removed "masternode=1", use "masternodeblsprivkey" instead
+
 0.1.28 -  Wed Apr 3 13:00:24 2019 +0000
 
     enh - use protx registration for masternode status
