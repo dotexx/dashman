@@ -24,7 +24,6 @@ if [ -t 1 ] || [ ! -z "$FORCE_COLOR" ] ; then
     TPUT_EL=$(tput el)
 fi
 
-
 GITHUB_API_DASH="https://api.github.com/repos/dashpay/dash"
 
 DASHD_RUNNING=0
@@ -219,9 +218,17 @@ _check_dependencies() {
 
     (which python 2>&1) >/dev/null || die "${messages["err_missing_dependency"]} python - sudo apt-get install python"
 
+	VIRTUALENVINST="python-virtualenv"
     DISTRO=$(/usr/bin/env python -mplatform | sed -e 's/.*with-//g')
-    if [[ $DISTRO == *"Ubuntu"* ]] || [[ $DISTRO == *"debian"* ]]; then
+	DISTROVER=$(echo $DISTRO | sed -e 's/.*-//g' | sed -e 's/\..*//g')
+    if [[ $DISTRO == *"Ubuntu"* ]]; then
         PKG_MANAGER=apt-get
+	elif [[ $DISTRO == *"debian"* ]]; then
+        PKG_MANAGER=apt-get
+		
+		if [[ $DISTRO == *"-10"* ]]; then
+			VIRTUALENVINST="python-pip virtualenv "
+		fi
     elif [[ $DISTRO == *"centos"* ]]; then
         PKG_MANAGER=yum
     fi
@@ -250,18 +257,25 @@ _check_dependencies() {
 
         # only require python-virtualenv for sentinel
         if [ "$2" == "sentinel" ]; then
-            (which virtualenv 2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}python-virtualenv "
+            (which virtualenv 2>&1) >/dev/null || MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}${VIRTUALENVINST} "
         fi
     fi
 
-    # make sure we have the right netcat version (-4,-6 flags)
     if [ ! -z "$(which nc)" ]; then
         (nc -z -4 8.8.8.8 53 2>&1) >/dev/null
         if [ $? -gt 0 ]; then
-            MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat6 "
+			if [[ $DISTRO == *"debian"* && $DISTROVER -ge 9 ]]; then
+				MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat-openbsd ";
+			else 
+				MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat6 ";
+			fi
         fi
     else
-        MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat "
+		if [[ $DISTRO == *"debian"* && $DISTROVER -ge 9 ]]; then
+			MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat-openbsd ";
+		else 
+			MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat "
+		fi
     fi
 
     if [ ! -z "$MISSING_DEPENDENCIES" ]; then
@@ -344,6 +358,31 @@ _find_dash_directory() {
 
 }
 
+_memory_check() {
+	MEM_NEED=4112784
+
+	MEM_TOTAL=$(cat /proc/meminfo | grep MemTotal  | sed -e 's/[^0-9]//g')
+	SWAP_TOTAL=$(cat /proc/meminfo | grep SwapTotal  | sed -e 's/[^0-9]//g')
+	AVL_TOTAL=$(( $MEM_TOTAL + $SWAP_TOTAL ))
+	
+	if [ $AVL_TOTAL -lt $MEM_NEED ] ; then
+		err "\nLow system memory. Dash may not sync!";
+		warn "MEMORY: $MEM_TOTAL + SWAP: $SWAP_TOTAL = $AVL_TOTAL < $MEM_NEED";
+		
+		pending "Add /swapfile?"
+		
+		if confirm " [${C_GREEN}y${C_NORM}/${C_RED}N${C_NORM}] $C_CYAN"; then
+			sudo fallocate -l 4G /swapfile
+			sudo chmod 600 /swapfile
+			sudo mkswap /swapfile
+			sudo swapon /swapfile
+			swapon --show
+			echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+        fi
+	else
+		ok "MEMORY: OK. $(( $MEM_TOTAL/1024 )) + $(( $SWAP_TOTAL/1024 )) swap";
+	fi
+}
 
 _check_dashman_updates() {
     GITHUB_DASHMAN_VERSION=$( $curl_cmd https://raw.githubusercontent.com/dotexx/dashman/master/VERSION )
@@ -427,11 +466,11 @@ _check_dashd_state() {
     _get_dashd_proc_status
     DASHD_RUNNING=0
     DASHD_RESPONDING=0
-    if [ $DASHD_HASPID -gt 0 ] && [ $DASHD_PID -gt 0 ]; then
+    if [[ $DASHD_HASPID -gt 0 && $DASHD_PID -gt 0 ]]; then
         DASHD_RUNNING=1
     fi
     $DASH_CLI getnetworkinfo >/dev/null 2>&1
-    if [ $? -eq 0 ] || [ $? -eq 28 ]; then
+    if [[ $? -eq 0 || $? -eq 28 ]]; then
         DASHD_RESPONDING=1
     fi
 }
@@ -720,13 +759,15 @@ install_dashd(){
 
     get_public_ips
     # prompt for ipv4 or ipv6 install
-#    if [ ! -z "$PUBLIC_IPV6" ] && [ ! -z "$PUBLIC_IPV4" ]; then
-#        pending " --- " ; echo
-#        pending " - ${messages["prompt_ipv4_ipv6"]}"
-#        if confirm " [${C_GREEN}y${C_NORM}/${C_RED}N${C_NORM}] $C_CYAN"; then
-#            USE_IPV6=1
-#        fi
-#    fi
+    if [ ! -z "$PUBLIC_IPV6" ] && [ ! -z "$PUBLIC_IPV4" ]; then
+        pending " --- " ; echo
+		pending " - IPv4: $PUBLIC_IPV4\n"
+		pending " - IPv6: $PUBLIC_IPV6\n"
+        pending " - ${messages["prompt_ipv4_ipv6"]}"
+        if confirm " [${C_GREEN}y${C_NORM}/${C_RED}N${C_NORM}] $C_CYAN"; then
+            USE_IPV6=1
+        fi
+    fi
 
     echo ""
 
@@ -735,15 +776,26 @@ install_dashd(){
     mkdir -p $INSTALL_DIR
 
     if [ ! -e $INSTALL_DIR/dash.conf ] ; then
-        pending " --> ${messages["creating"]} dash.conf... "
-
         IPADDR=$PUBLIC_IPV4
-#        if [ ! -z "$USE_IPV6" ]; then
-#            IPADDR='['$PUBLIC_IPV6']'
-#        fi
+        if [ ! -z "$USE_IPV6" ]; then
+            IPADDR='['$PUBLIC_IPV6']'
+        fi
 
-		IPADDRDIRECT='';
-		if [ `ip addr | grep $IPADDR | wc -l` ] ; then IPADDR_IS_DIRECT=$IPADDR; fi
+		IPADDRBIND='0.0.0.0';
+		if [ `ip addr | grep $IPADDR | wc -l` != '0' ]; then 
+			IPADDRBIND=$IPADDR;
+		fi
+		
+		pending "bind only IP ${IPADDRBIND}?"
+		
+        if confirm " [${C_GREEN}y${C_NORM}/${C_RED}N${C_NORM}] $C_CYAN"; then
+			ok "binding IP: ${IPADDRBIND}"
+		else
+			IPADDRBIND='0.0.0.0';
+			warn "binding IP: ${IPADDRBIND}"
+        fi
+		
+		pending " --> ${messages["creating"]} dash.conf... "
 
         RPCUSER=`echo $(dd if=/dev/urandom bs=32 count=1 2>/dev/null) | sha256sum | awk '{print $1}'`
         RPCPASS=`echo $(dd if=/dev/urandom bs=32 count=1 2>/dev/null) | sha256sum | awk '{print $1}'`
@@ -922,11 +974,12 @@ install_dashd(){
     ok "${messages["done"]}"
 
     # path it ----------------------------------------------------------------
-
-    pending " --> adding $INSTALL_DIR PATH to ~/.bash_aliases ... "
+	
+	pending " --> adding $INSTALL_DIR PATH to ~/.bash_aliases ... "
     if [ ! -f ~/.bash_aliases ]; then touch ~/.bash_aliases ; fi
     sed -i.bak -e '/dashman_env/d' ~/.bash_aliases
-    echo "export PATH=$INSTALL_DIR:\$PATH ; # dashman_env" >> ~/.bash_aliases
+    echo "export PATH=$INSTALL_DIR:$DASHMAN_GITDIR:\$PATH ; # dashman_env" >> ~/.bash_aliases
+	export PATH=$INSTALL_DIR:$INSTALL_DIR:$PATH ;
     ok "${messages["done"]}"
 
 
@@ -970,15 +1023,20 @@ _get_dashd_proc_status(){
             DASHD_HASPID=0
         fi
     fi
-    DASHD_PID=$(pidof $INSTALL_DIR/dashd)
+	
+	if [ -z "$DASHD_PID" ] ; then
+		DASHD_PID=$(pidof $INSTALL_DIR/dashd)
+	fi
+    
 }
 
 get_dashd_status(){
-	MASTERNODE_CONFIG_BIND_IP=$( egrep -s '^[^#]*[\t\s]*bind\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc)' | sed "s/[\t ]//g" | sed "s/^.*=//")
+	MASTERNODE_CONFIG_BIND_IP=$( egrep -s '^[^#]*[\t\s]*bind\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc|0.0.0.0)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g')
+	MASTERNODE_CONFIG_EXT_IP=$( egrep -s '^[^#]*[\t\s]*externalip\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g')
 	
     _get_dashd_proc_status
 
-    DASHD_UPTIME=$(ps -p $DASHD_PID -o etime= 2>/dev/null | sed -e 's/ //g')
+    DASHD_UPTIME=$(ps -eo pid,etime,command | grep dashd | grep $DASHD_PID | sed -e 's/^[ ]*[0-9]*[ ]*//g' | sed -e 's/[ ].*//g' | sed -e 's/ //g')
     DASHD_UPTIME_TIMES=$(echo "$DASHD_UPTIME" | perl -ne 'chomp ; s/-/:/ ; print join ":", reverse split /:/' 2>/dev/null )
     DASHD_UPTIME_SECS=$( echo "$DASHD_UPTIME_TIMES" | cut -d: -f1 )
     DASHD_UPTIME_MINS=$( echo "$DASHD_UPTIME_TIMES" | cut -d: -f2 )
@@ -993,8 +1051,11 @@ get_dashd_status(){
 		DASHD_LISTENING=`netstat -nat | grep LIST | grep 9999 | wc -l`;
 		DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep 9999 | wc -l`;
 	else
-		DASHD_LISTENING=`netstat -nat | grep LIST | grep $MASTERNODE_CONFIG_BIND_IP | grep 9999 | wc -l`;
-		DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep $MASTERNODE_CONFIG_BIND_IP | grep 9999 | wc -l`;
+		# ipv6 fix
+		EXT_IP_compare=$( echo $MASTERNODE_CONFIG_EXT_IP | sed "s/::[0-9]*$//g" )
+	
+		DASHD_LISTENING=`netstat -nat | grep LIST | grep $EXT_IP_compare | grep 9999 | wc -l`;
+		DASHD_CONNECTIONS=`netstat -nat | grep ESTA | grep $EXT_IP_compare | grep 9999 | wc -l`;
 	fi
 	
     DASHD_CURRENT_BLOCK=`$DASH_CLI getblockcount 2>/dev/null`
@@ -1051,10 +1112,14 @@ get_dashd_status(){
 	
     MASTERNODE_BIND_IP=$MASTERNODE_CONFIG_BIND_IP
 	if [ -z "$MASTERNODE_BIND_IP" ]; then
-		MASTERNODE_BIND_IP=$PUBLIC_IPV4
+		MASTERNODE_BIND_IP=$MASTERNODE_CONFIG_EXT_IP
+		
+		if [ -z "$MASTERNODE_BIND_IP" ]; then
+			MASTERNODE_BIND_IP=$PUBLIC_IPV4
+		fi
     fi
 	
-    PUBLIC_PORT_CLOSED=$( timeout 2 nc -4 -z $MASTERNODE_BIND_IP 9999 2>&1 >/dev/null; echo $? )
+    PUBLIC_PORT_CLOSED=$( timeout 2 nc -z $MASTERNODE_BIND_IP 9999 2>&1 >/dev/null; echo $? )
 
     # masternode (remote!) specific
 
@@ -1209,13 +1274,13 @@ print_status() {
 
     pending "${messages["status_hostnam"]}" ; ok "$HOSTNAME"
     pending "${messages["status_uptimeh"]}" ; ok "$HOST_UPTIME_DAYS ${messages["days"]}, $HOST_LOAD_AVERAGE"
-    pending "${messages["status_dashdip"]}" ; [ $PUBLIC_IPV4 != 'none' ] && ok "$PUBLIC_IPV4" || err "$PUBLIC_IPV4"
-    pending "${messages["status_dashipc"]}" ; [ $MASTERNODE_BIND_IP == $PUBLIC_IPV4 ] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
+    pending "${messages["status_dashdip"]}" ; ok "IPv4: $PUBLIC_IPV4 , IPv6: $PUBLIC_IPV6"
+    pending "${messages["status_dashipc"]}" ; [[ $MASTERNODE_BIND_IP == $PUBLIC_IPV4 || $MASTERNODE_BIND_IP == $PUBLIC_IPV6 ]] && ok "$MASTERNODE_BIND_IP" || err "$MASTERNODE_BIND_IP"
     pending "${messages["status_dashdve"]}" ; ok "$CURRENT_VERSION"
     pending "${messages["status_uptodat"]}" ; [[ $DASHD_UP_TO_DATE -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_running"]}" ; [[ $DASHD_HASPID     -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_uptimed"]}" ; [[ $DASHD_RUNNING    -gt 0 ]] && ok "$DASHD_UPTIME_STRING" || err "$DASHD_UPTIME_STRING"
-    pending "${messages["status_drespon"]}" ; [[ $DASHD_RUNNING    -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
+    pending "${messages["status_drespon"]}" ; [[ $DASHD_RESPONDING    -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_dlisten"]}" ; [[ $DASHD_LISTENING  -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_dconnec"]}" ; [[ $DASHD_CONNECTED  -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_dportop"]}" ; [[ $PUBLIC_PORT_CLOSED  -lt 1 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
@@ -1283,17 +1348,15 @@ show_message_configure() {
 }
 
 get_public_ips() {
-    PUBLIC_IPV4=$($curl_cmd -4 https://icanhazip.com/)
-#    PUBLIC_IPV6=$($curl_cmd -6 https://icanhazip.com/)
-#    if [ -z "$PUBLIC_IPV4" ] && [ -z "$PUBLIC_IPV6" ]; then
-    if [ -z "$PUBLIC_IPV4" ]; then
-
+    PUBLIC_IPV4=$($curl_cmd https://ipv4.icanhazip.com/)
+    PUBLIC_IPV6=$($curl_cmd https://ipv6.icanhazip.com/)
+    
+	if [ -z "$PUBLIC_IPV4" ] && [ -z "$PUBLIC_IPV6" ]; then
         # try http
-        PUBLIC_IPV4=$($curl_cmd -4 http://icanhazip.com/)
-#        PUBLIC_IPV6=$($curl_cmd -6 http://icanhazip.com/)
+		PUBLIC_IPV4=$($curl_cmd https://ipv4.icanhazip.com/)
+		PUBLIC_IPV6=$($curl_cmd https://ipv6.icanhazip.com/)
 
-#        if [ -z "$PUBLIC_IPV4" ] && [ -z "$PUBLIC_IPV6" ]; then
-        if [ -z "$PUBLIC_IPV4" ]; then
+       if [ -z "$PUBLIC_IPV4" ]; then
             sleep 3
             err "  --> ${messages["err_failed_ip_resolve"]}"
             # try again

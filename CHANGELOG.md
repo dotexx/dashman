@@ -1,3 +1,13 @@
+0.1.31 - Fri Nov 13 2020
+
+	Memory check & swap adding
+	Debian 10 fixes
+	
+	bugfix - die function replaced
+	bugfix - IPv6
+	bugfix - bind in dash.conf 
+	bugfix - dashd responding (rpc)
+
 0.1.30 - Wed Nov 10 2020
 
 	added countdown to next payment
@@ -9,7 +19,7 @@
 
 0.1.29 - Tue Sep 13 2020
 
-	compat - update dashd 16.1
+	compat - update dashd 0.16
 
 	replaced deprecated "getinfo" with "getnetworkinfo" & "getblockchaininfo" for dash_cli
 	remove broken dashninja

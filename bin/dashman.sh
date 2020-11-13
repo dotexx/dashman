@@ -7,7 +7,9 @@
 
 # check we're running bash 4 -------------------------------------------------
 
-if [[ ${BASH_VERSION%%.*} != '4' ]];then
+die() { [[ $QUIET ]] || echo -e "$*" 1>&2 ; exit 1 ; }
+
+if [[ ${BASH_VERSION%%.*} -lt '4' ]]; then
     die "dashman requires bash version 4. please update. exiting."
 fi
 
@@ -92,6 +94,7 @@ case "$1" in
             _check_dashman_updates
             _find_dash_directory
             _get_versions
+			_memory_check
             _check_dashd_state
             ok " ${messages["done"]}"
             if [ ! -z "$2" ]; then
@@ -110,6 +113,7 @@ case "$1" in
             pending "${messages["gathering_info"]}"
             _check_dashman_updates
             _get_versions
+			_memory_check
             ok " ${messages["done"]}"
             if [ ! -z "$ARM" ] && [ $BIGARM -eq 0 ]; then
                 die "$COMMAND not supported yet on this platform."
@@ -141,6 +145,7 @@ case "$1" in
             _check_dashman_updates
             _find_dash_directory
             _get_versions
+			_memory_check
             _check_dashd_state
             REINSTALL=1
             ok " ${messages["done"]}"
