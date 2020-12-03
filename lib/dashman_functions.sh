@@ -359,7 +359,7 @@ _find_dash_directory() {
 }
 
 _memory_check() {
-	MEM_NEED=4112784
+	MEM_NEED=4000000
 
 	MEM_TOTAL=$(cat /proc/meminfo | grep MemTotal  | sed -e 's/[^0-9]//g')
 	SWAP_TOTAL=$(cat /proc/meminfo | grep SwapTotal  | sed -e 's/[^0-9]//g')
@@ -466,7 +466,7 @@ _check_dashd_state() {
     _get_dashd_proc_status
     DASHD_RUNNING=0
     DASHD_RESPONDING=0
-    if [[ $DASHD_HASPID -gt 0 && $DASHD_PID -gt 0 ]]; then
+    if [[ $DASHD_HASPID -gt 0 ]]; then
         DASHD_RUNNING=1
     fi
     $DASH_CLI getnetworkinfo >/dev/null 2>&1
@@ -515,8 +515,8 @@ restart_dashd(){
     DASHD_RESPONDING=0
     while [ $DASHD_RUNNING == 1 ] && [ $DASHD_RESPONDING == 0 ]; do
         echo -n "."
+		sleep 3
         _check_dashd_state
-        sleep 2
     done
     if [ $DASHD_RUNNING == 0 ]; then
         die "\n - dashd unexpectedly quit. ${messages["exiting"]}"
@@ -674,8 +674,8 @@ update_dashd(){
         DASHD_RUNNING=1
         while [ $DASHD_RUNNING == 1 ] && [ $DASHD_RESPONDING == 0 ]; do
             echo -n "."
+			sleep 3
             _check_dashd_state
-            sleep 1
         done
         if [ $DASHD_RUNNING == 0 ]; then
             die "\n - dashd unexpectedly quit. ${messages["exiting"]}"
@@ -965,8 +965,8 @@ install_dashd(){
     echo -en "${C_YELLOW}"
     while [ $DASHD_RUNNING == 1 ] && [ $DASHD_RESPONDING == 0 ]; do
         echo -n "."
+		sleep 3
         _check_dashd_state
-        sleep 2
     done
     if [ $DASHD_RUNNING == 0 ]; then
         die "\n - dashd unexpectedly quit. ${messages["exiting"]}"
@@ -1019,24 +1019,21 @@ _get_dashd_proc_status(){
         DASHD_HASPID=`ps --no-header \`cat $INSTALL_DIR/dashd.pid 2>/dev/null\` | wc -l`;
     else
         DASHD_HASPID=$(pidof $INSTALL_DIR/dashd)
+		
         if [ $? -gt 0 ]; then
             DASHD_HASPID=0
         fi
-    fi
-	
-	if [ -z "$DASHD_PID" ] ; then
-		DASHD_PID=$(pidof $INSTALL_DIR/dashd)
-	fi
-    
+    fi    
 }
 
 get_dashd_status(){
-	MASTERNODE_CONFIG_BIND_IP=$( egrep -s '^[^#]*[\t\s]*bind\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc|0.0.0.0)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g')
-	MASTERNODE_CONFIG_EXT_IP=$( egrep -s '^[^#]*[\t\s]*externalip\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g')
+	MASTERNODE_CONFIG_BIND_IP=$( egrep -s '^[^#]*[\t\s]*bind\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc|0.0.0.0)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g' )
+	MASTERNODE_CONFIG_EXT_IP=$( egrep -s '^[^#]*[\t\s]*externalip\s*=\s*' $HOME/.dash{,core}/dash.conf | egrep -v '(white|rpc)' | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g' )
+	MASTERNODE_CONFIG_TxHash=$( egrep -s '^[^#]*[\t\s]*masternodeproTxHash\s*=\s*' $HOME/.dash{,core}/dash.conf | sed "s/[\r\n\t ]//g" | sed "s/^.*=//" | sed -e 's/^\[//g' | sed -e 's/\]$//g' )
 	
     _get_dashd_proc_status
 
-    DASHD_UPTIME=$(ps -eo pid,etime,command | grep dashd | grep $DASHD_PID | sed -e 's/^[ ]*[0-9]*[ ]*//g' | sed -e 's/[ ].*//g' | sed -e 's/ //g')
+    DASHD_UPTIME=$(ps -eo pid,etime,command | grep dashd | grep $DASHD_HASPID | sed -e 's/^[ ]*[0-9]*[ ]*//g' | sed -e 's/[ ].*//g' | sed -e 's/ //g')
     DASHD_UPTIME_TIMES=$(echo "$DASHD_UPTIME" | perl -ne 'chomp ; s/-/:/ ; print join ":", reverse split /:/' 2>/dev/null )
     DASHD_UPTIME_SECS=$( echo "$DASHD_UPTIME_TIMES" | cut -d: -f1 )
     DASHD_UPTIME_MINS=$( echo "$DASHD_UPTIME_TIMES" | cut -d: -f2 )
@@ -1122,9 +1119,15 @@ get_dashd_status(){
     PUBLIC_PORT_CLOSED=$( timeout 2 nc -z $MASTERNODE_BIND_IP 9999 2>&1 >/dev/null; echo $? )
 
     # masternode (remote!) specific
-
-    MN_PROTX_RAW="$($DASH_CLI protx list valid 1 2>&1)"
-    MN_PROTX_RECORD=`echo "$MN_PROTX_RAW" | grep -w -B6 -A19 $MASTERNODE_BIND_IP:9999 | sed -e 's/:9999/~9999/' -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e 's/~9999/:9999/' -e '/^$/d' -e '/^[^ ]\+$/d'`
+	
+	MN_PROTX_RAW="$($DASH_CLI protx list valid 1 2>&1)"
+	MN_PROTX_RECORD=`echo "$MN_PROTX_RAW" | grep -w -B6 -A19 $MASTERNODE_BIND_IP:9999 | sed -e 's/:9999/~9999/' -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e 's/~9999/:9999/' -e '/^$/d' -e '/^[^ ]\+$/d'`
+	
+	if [ -z "$MN_PROTX_RECORD" ]; then
+		MN_PROTX_RAW="$($DASH_CLI protx info $MASTERNODE_CONFIG_TxHash 2>&1)"
+		MN_PROTX_RECORD=`echo "$MN_PROTX_RAW" | sed -e 's/:9999/~9999/' -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e 's/~9999/:9999/' -e '/^$/d' -e '/^[^ ]\+$/d'`	
+	fi
+	
     MN_PROTX_QUEUE=`echo "$MN_PROTX_RAW" | egrep '(proTxHash|lastPaidHeight|PoSeRevivedHeight|registeredHeight)' | sed -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e '/^$/d' -e '/^[^ ]\+$/d' | sed -e 'N;s/\n/ /' | sed -e 'N;s/\n/ /' | awk ' \
 {
     if ($8 > $6) {
@@ -1159,8 +1162,8 @@ get_dashd_status(){
     MN_PROTX_SERVICE_VALID=0
 
     MN_CONF_ENABLED=$( egrep -s '^[^#]*\s*masternodeblsprivkey\s*=\s*' $HOME/.dash{,core}/dash.conf | wc -l 2>/dev/null)
-    #MN_STARTED=`$DASH_CLI masternode status 2>&1 | grep 'successfully started' | wc -l`
-    MN_REGISTERED=0
+    
+	MN_REGISTERED=0
     [[ -z "$MN_PROTX_RECORD" ]] || MN_REGISTERED=1
 
     if [ $MN_REGISTERED -gt 0 ]; then
@@ -1264,7 +1267,7 @@ get_host_status(){
     uptime=$(</proc/uptime)
     uptime=${uptime%%.*}
     HOST_UPTIME_DAYS=$(( uptime/60/60/24 ))
-    HOSTNAME=$(hostname -f)
+    HOSTNAME=$(hostname -A 2>/dev/null)
 }
 
 
@@ -1293,11 +1296,10 @@ print_status() {
     pending "${messages["status_webmast"]}" ; [[ $WEB_ME_FORK_DETECT -gt 0 ]] && err "$WEB_ME" || ok "$WEB_ME"
     pending "${messages["status_dcurdif"]}" ; ok "$DASHD_DIFFICULTY"
     if [ $DASHD_RUNNING -gt 0 ] && [ $MN_CONF_ENABLED -gt 0 ] ; then
-    #pending "${messages["status_mnstart"]}" ; [[ $MN_STARTED -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_mnregis"]}" ; [[ $MN_REGISTERED -gt 0 ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "${messages["status_mnvislo"]}" ; [[ $MN_VISIBLE -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     
-    pending "${messages["status_mnqueue"]}" ; ok "$MN_PROTX_QUEUE_POSITION/$MN_PROTX_QUEUE_LENGTH"
+    pending "${messages["status_mnqueue"]}" ; [[ $MN_PROTX_QUEUE_LENGTH -gt 1  ]] && ok "$MN_PROTX_QUEUE_POSITION/$MN_PROTX_QUEUE_LENGTH" || err "${messages["FAILED"]}"
     pending "  masternode mnsync state    : " ; [ ! -z "$MN_SYNC_ASSET" ] && ok "$MN_SYNC_ASSET" || ""
     pending "  masternode network state   : " ; [ "$MN_STATUS" == "ENABLED" ] && ok "$MN_STATUS" || highlight "$MN_STATUS"
 
