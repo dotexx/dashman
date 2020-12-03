@@ -1015,15 +1015,24 @@ install_dashd(){
 
 _get_dashd_proc_status(){
     DASHD_HASPID=0
+	
     if [ -e $INSTALL_DIR/dashd.pid ] ; then
-        DASHD_HASPID=`ps --no-header \`cat $INSTALL_DIR/dashd.pid 2>/dev/null\` | wc -l`;
-    else
+		DASHD_HASPID=`cat $INSTALL_DIR/dashd.pid 2>/dev/null`
+		
+		DASHD_HASPID_RUNNING=`ps --no-header $DASHD_HASPID | wc -l`;
+		
+		if [ $DASHD_HASPID_RUNNING -lt 1 ]; then
+            DASHD_HASPID=0
+        fi
+	fi
+        
+	if [ $DASHD_HASPID -lt 1 ]; then
         DASHD_HASPID=$(pidof $INSTALL_DIR/dashd)
 		
         if [ $? -gt 0 ]; then
             DASHD_HASPID=0
         fi
-    fi    
+	fi
 }
 
 get_dashd_status(){
