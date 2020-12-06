@@ -145,6 +145,10 @@ usage(){
         install
 
             ${messages["usage_install_description"]}
+			
+        install sentinel
+
+            install or reinstall sentinel
 
         update
 
@@ -217,16 +221,23 @@ function cache_output(){
 _check_dependencies() {
 
     (which python 2>&1) >/dev/null || die "${messages["err_missing_dependency"]} python - sudo apt-get install python"
-
+	
 	VIRTUALENVINST="python-virtualenv"
-    DISTRO=$(/usr/bin/env python -mplatform | sed -e 's/.*with-//g')
-	DISTROVER=$(echo $DISTRO | sed -e 's/.*-//g' | sed -e 's/\..*//g')
-    if [[ $DISTRO == *"Ubuntu"* ]]; then
+    
+	DISTRO=$(/usr/bin/env python -mplatform | sed -e 's/.*with-//g')
+	IFS="-" read -ra DISTR_SPLIT <<< "$DISTRO"
+	DISTRO_VER=$(echo "${DISTR_SPLIT[1]}" | sed -e 's/\..*//g' | sed -e 's/\..*//g')
+    
+	if [[ $DISTRO == *"Ubuntu"* ]]; then
         PKG_MANAGER=apt-get
+		
+		if [[ $DISTRO_VER -ge 18 ]]; then
+			VIRTUALENVINST="python3 virtualenv "
+		fi
 	elif [[ $DISTRO == *"debian"* ]]; then
         PKG_MANAGER=apt-get
 		
-		if [[ $DISTRO == *"-10"* ]]; then
+		if [[ $DISTRO_VER -ge 9 ]]; then
 			VIRTUALENVINST="python-pip virtualenv "
 		fi
     elif [[ $DISTRO == *"centos"* ]]; then
@@ -264,14 +275,14 @@ _check_dependencies() {
     if [ ! -z "$(which nc)" ]; then
         (nc -z -4 8.8.8.8 53 2>&1) >/dev/null
         if [ $? -gt 0 ]; then
-			if [[ $DISTRO == *"debian"* && $DISTROVER -ge 9 ]]; then
+			if [[ $DISTRO == *"debian"* && $DISTRO_VER -ge 9 ]]; then
 				MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat-openbsd ";
 			else 
 				MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat6 ";
 			fi
         fi
     else
-		if [[ $DISTRO == *"debian"* && $DISTROVER -ge 9 ]]; then
+		if [[ $DISTRO == *"debian"* && $DISTRO_VER -ge 9 ]]; then
 			MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat-openbsd ";
 		else 
 			MISSING_DEPENDENCIES="${MISSING_DEPENDENCIES}netcat "
@@ -1132,7 +1143,7 @@ get_dashd_status(){
 	MN_PROTX_RAW="$($DASH_CLI protx list valid 1 2>&1)"
 	MN_PROTX_RECORD=`echo "$MN_PROTX_RAW" | grep -w -B6 -A19 $MASTERNODE_BIND_IP:9999 | sed -e 's/:9999/~9999/' -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e 's/~9999/:9999/' -e '/^$/d' -e '/^[^ ]\+$/d'`
 	
-	if [ -z "$MN_PROTX_RECORD" ]; then
+	if [[ -z "$MN_PROTX_RECORD" && ! -z "$MASTERNODE_CONFIG_TxHash" ]]; then
 		MN_PROTX_RAW="$($DASH_CLI protx info $MASTERNODE_CONFIG_TxHash 2>&1)"
 		MN_PROTX_RECORD=`echo "$MN_PROTX_RAW" | sed -e 's/:9999/~9999/' -e 's/[":,{}]//g' -e 's/^ \+//' -e 's/ \+$//' -e 's/~9999/:9999/' -e '/^$/d' -e '/^[^ ]\+$/d'`	
 	fi
