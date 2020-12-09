@@ -89,7 +89,7 @@ get_wallet_balance() {
 }
 
 get_last_payment_date() {
-	if [ $1 -gt 0 ];then
+	if [[ $1 -gt 0 ]];then
 		NOW=`date +%s`
 	
 		DASHD_PAY_BLOCK_HASH=`$DASH_CLI getblockhash $1`
@@ -1186,7 +1186,7 @@ get_dashd_status(){
 	MN_REGISTERED=0
     [[ -z "$MN_PROTX_RECORD" ]] || MN_REGISTERED=1
 
-    if [ $MN_REGISTERED -gt 0 ]; then
+    if [[ $MN_REGISTERED -gt 0 && ! -z "$MN_PROTX_RECORD" ]]; then
         MN_PROTX_HASH=$(echo "$MN_PROTX_RECORD" | grep proTxHash | awk '{print $2}')
         MN_PROTX_CONFIRMATIONS=$(echo "$MN_PROTX_RECORD" | grep confirmations | awk '{print $2}')
         MN_PROTX_REGD_HEIGHT=$(echo "$MN_PROTX_RECORD" | grep registeredHeight | awk '{print $2}')
@@ -1209,18 +1209,17 @@ get_dashd_status(){
         if [ "$MASTERNODE_BIND_IP" == "$MN_PROTX_SERVICE_IP" ]; then
             MN_PROTX_SERVICE_VALID=1
         fi
-        MN_PROTX_QUEUE_POSITION=$(echo "$MN_PROTX_QUEUE" | grep -A9999999 $MN_PROTX_HASH | wc -l)
+        MN_PROTX_QUEUE_POSITION=$(echo "$MN_PROTX_QUEUE" | grep -A9999999 "$MN_PROTX_HASH" | wc -l)
     fi
-
+	
     MN_QUEUE_IN_SELECTION=0
     MN_QUEUE_LENGTH=0
     MN_QUEUE_POSITION=0
 
-
     NOW=`date +%s`
     MN_LIST="$(cache_output /tmp/mnlist_cache '$DASH_CLI masternodelist full 2>/dev/null')"
 
-    MN_STATUS=$( grep $MASTERNODE_BIND_IP /tmp/mnlist_cache | sed -e 's/"//g' | awk '{print $2}' )
+    MN_STATUS=$( grep "$MASTERNODE_BIND_IP" /tmp/mnlist_cache | sed -e 's/"//g' | awk '{print $2}' )
     MN_VISIBLE=$( test "$MN_STATUS" && echo 1 || echo 0 )
     MN_ENABLED=$( cat /tmp/mnlist_cache | grep -c ENABLED )
     MN_UNHEALTHY=$( cat /tmp/mnlist_cache | grep -c EXPIRED )
@@ -1237,6 +1236,21 @@ get_dashd_status(){
             MN_QUEUE_IN_SELECTION=$(( $MN_QUEUE_POSITION <= $(( $MN_QUEUE_LENGTH / 10 )) ))
         fi
     fi
+	
+    # dashd checks
+	if [[ $MN_REGISTERED -gt 0 ]]; then
+		DASHD_CRONTAB=$( crontab -l | grep dashd | grep -v '^#' | wc -l )
+		 if [[ "$DASHD_CRONTAB" -eq 0 ]] ; then
+		 
+			err "\nDashd not fonud in crontab. Add?";
+			
+			if confirm " [${C_GREEN}y${C_NORM}/${C_RED}N${C_NORM}] $C_CYAN"; then
+				pending "  --> installing crontab... "
+				(crontab -l 2>/dev/null | grep -v dashd ; echo "* * * * * pidof dashd > /dev/null 2>&1 || $INSTALL_DIR/dashd 2>&1 >> /dev/null") | crontab -
+				ok "${messages["done"]}"
+			fi
+		fi
+	fi
 
     # sentinel checks
     if [ -e $INSTALL_DIR/sentinel ]; then
@@ -1328,7 +1342,7 @@ print_status() {
     pending "    sentinel crontab enabled : " ; [[ $SENTINEL_CRONTAB   -gt 0  ]] && ok "${messages["YES"]}" || err "${messages["NO"]}"
     pending "    sentinel online          : " ; [[ $SENTINEL_LAUNCH_OK -eq 0  ]] && ok "${messages["YES"]}" || ([ $MN_SYNC_COMPLETE -eq 0 ] && warn "${messages["NO"]} - sync incomplete") || err "${messages["NO"]}"
 
-    if [ $MN_REGISTERED -gt 0 ] ; then
+    if [[ $MN_REGISTERED -gt 0 && ! -z "$MN_PROTX_HASH" ]] ; then
 		pending " protx registration hash     : " ; ok "$MN_PROTX_HASH"
         pending " protx registered service    : " ; [[ $MN_PROTX_SERVICE_VALID  -eq 1 ]] && ok "$MN_PROTX_SERVICE" || err "$MN_PROTX_SERVICE"
         pending " protx registered address    : " ; ok "$MN_PROTX_COLL_ADDY | $(get_wallet_balance $MN_PROTX_COLL_ADDY) dash"
