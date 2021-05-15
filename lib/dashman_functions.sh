@@ -2,7 +2,8 @@
 
 # dashman_functions.sh - common functions and variables
 
-# Copyright (c) 2015-2019 moocowmoo - moocowmoo@masternode.me
+# Copyright (c) 2019-2021 dotexx | The MIT License (MIT)
+# Copyright (c) 2015-2019 moocowmoo - moocowmoo@masternode.me | The MIT License (MIT)
 
 # variables are for putting things in ----------------------------------------
 
@@ -85,7 +86,13 @@ wget_cmd='wget --no-check-certificate -q'
 # (mostly) functioning functions -- lots of refactoring to do ----------------
 
 get_wallet_balance() {
-	echo $( $curl_cmd https://explorer.dash.org/insight-api/addr/$1/?noTxList=1 | python -mjson.tool | grep 'balance"' | awk '{print $2}' | sed -e 's/[",]//g' )
+	BALANCE=$( $curl_cmd https://explorer.dash.org/insight-api/addr/$1/?noTxList=1 | python -mjson.tool 2>&1 | grep 'balance"' | awk '{print $2}' | sed -e 's/[",]//g' )
+	
+    if [ -e $BALANCE ] ; then
+        err "balance_error"
+	else
+		echo "$BALANCE"
+    fi
 }
 
 get_last_payment_date() {
@@ -93,7 +100,7 @@ get_last_payment_date() {
 		NOW=`date +%s`
 	
 		DASHD_PAY_BLOCK_HASH=`$DASH_CLI getblockhash $1`
-		DASHD_PAY_BLOCK_TIME=`$DASH_CLI getblockheader $DASHD_PAY_BLOCK_HASH | python -mjson.tool | grep '"time' | awk '{print $2}'| sed -e 's/[",]//g'`
+		DASHD_PAY_BLOCK_TIME=`$DASH_CLI getblockheader $DASHD_PAY_BLOCK_HASH | python -mjson.tool 2>&1 | grep '"time' | awk '{print $2}'| sed -e 's/[",]//g'`
 		DASHD_PAY_BLOCK_DIFF=$(( NOW-DASHD_PAY_BLOCK_TIME ))
 		
 		echo $(print_count_down $DASHD_PAY_BLOCK_DIFF)
@@ -448,7 +455,7 @@ _get_versions() {
         DOWNLOAD_FOR='RPi2'
     fi
 
-    GITHUB_RELEASE_JSON="$($curl_cmd $GITHUB_API_DASH/releases/latest | python -mjson.tool)"
+    GITHUB_RELEASE_JSON="$($curl_cmd $GITHUB_API_DASH/releases/latest | python -mjson.tool 2>&1)"
     CHECKSUM_URL=$(echo "$GITHUB_RELEASE_JSON" | grep browser_download | grep SUMS.asc | cut -d'"' -f4)
     CHECKSUM_FILE=$( $curl_cmd $CHECKSUM_URL )
 
@@ -1086,8 +1093,8 @@ get_dashd_status(){
     fi
 
     WEB_BLOCK_COUNT_DATA=`$curl_cmd https://explorer.dash.org/insight-api/blocks?limit=1`;
-	WEB_BLOCK_COUNT_TEXT=$(echo $WEB_BLOCK_COUNT_DATA | python -m json.tool)
-	WEB_BLOCK_COUNT_DQA=$(echo "$WEB_BLOCK_COUNT_TEXT" | python -m json.tool | grep height | awk '{print $2}' | sed -e 's/[",]//g')
+	WEB_BLOCK_COUNT_TEXT=$(echo $WEB_BLOCK_COUNT_DATA | python -m json.tool 2>&1)
+	WEB_BLOCK_COUNT_DQA=$(echo "$WEB_BLOCK_COUNT_TEXT" | python -m json.tool 2>&1 | grep height | awk '{print $2}' | sed -e 's/[",]//g')
     if [ -z "$WEB_BLOCK_COUNT_DQA" ]; then
         WEB_BLOCK_COUNT_DQA=0
     fi
@@ -1098,7 +1105,7 @@ get_dashd_status(){
         WEB_DASHWHALE=`$curl_cmd https://www.dashcentral.org/api/v1/public`;
     fi
 
-    WEB_DASHWHALE_JSON_TEXT=$(echo $WEB_DASHWHALE | python -m json.tool)
+    WEB_DASHWHALE_JSON_TEXT=$(echo $WEB_DASHWHALE | python -m json.tool 2>&1)
     WEB_BLOCK_COUNT_DWHALE=$(echo "$WEB_DASHWHALE_JSON_TEXT" | grep consensus_blockheight | awk '{print $2}' | sed -e 's/[",]//g')
 
     WEB_ME=`$curl_cmd https://www.masternode.me/data/block_state.txt 2>/dev/null`;
